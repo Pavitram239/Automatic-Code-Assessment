@@ -1,6 +1,6 @@
 import "express-async-errors";
 import { config } from "dotenv";
-config({ path: "../.env"});
+config({ path: "../.env" });
 import express from "express";
 import mongoose from "mongoose";
 import cookieParser from "cookie-parser";
@@ -17,15 +17,18 @@ import adminRouter from "./routes/admin.router.js";
 import facultyRouter from "./routes/faculty.router.js";
 import compiler from "./routes/compiler.js";
 
-
 const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(express.static("public"));
 app.use(express.json());
 
+const allowedOrigin = (
+  process.env.BACKEND_ORIGIN || "http://localhost:5173"
+).replace(/\/$/, "");
+
 const corsOptions = {
-  origin: process.env.BACKEND_ORIGIN || "http://localhost:5173",
+  origin: allowedOrigin,
   credentials: true,
 };
 // const corsOptions = {
@@ -54,7 +57,7 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log("DB Connected");
-    app.listen(PORT,process.env.ALL_IP, () => {
+    app.listen(PORT, process.env.ALL_IP, () => {
       console.log(`server running on http://localhost:${PORT}`);
     });
   })
