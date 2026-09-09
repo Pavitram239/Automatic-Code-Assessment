@@ -3,6 +3,7 @@ node_modules/
 # Local secrets and environment files
 .env
 .env.*
+*.env
 !.env.example
 !sample.env
 /server/.env
