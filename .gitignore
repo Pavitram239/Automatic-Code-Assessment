@@ -1,2 +1,15 @@
-node_modules
+node_modules/
+
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+!sample.env
 /server/.env
+
+# Judge0 local credentials
+/judge0.conf
+!/judge0.conf.example
+
+# Build output
+client/dist/
