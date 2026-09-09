@@ -1,0 +1,140 @@
+services:
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+      args:
+        VITE_FRONTEND_ORIGIN: http://localhost:3100/api/v1
+    ports:
+      - "5173:80"
+    depends_on:
+      server:
+        condition: service_started
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3100
+      ALL_IP: 0.0.0.0
+      MONGO_URI: ${DOCKER_MONGO_URI}
+      BACKEND_ORIGIN: http://localhost:5173
+      JUDGE0_BASE_URL: http://judge0-server:2358
+      JUDGE0_TOKEN: ${JUDGE0_TOKEN}
+      RABBITMQ_URL: amqp://judge0:judge0_rabbitmq_password_123@rabbitmq:5672
+    ports:
+      - "3100:3100"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      judge0-server:
+        condition: service_started
+    restart: unless-stopped
+
+  submission-worker:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    command: ["node", "worker/codeexecution.js"]
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      MONGO_URI: ${DOCKER_MONGO_URI}
+      JUDGE0_BASE_URL: http://judge0-server:2358
+      JUDGE0_TOKEN: ${JUDGE0_TOKEN}
+      RABBITMQ_URL: amqp://judge0:judge0_rabbitmq_password_123@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      judge0-server:
+        condition: service_started
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: judge0
+      RABBITMQ_DEFAULT_PASS: judge0_rabbitmq_password_123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  judge0-server:
+    image: judge0/judge0:latest
+    privileged: true
+    ports:
+      - "2358:2358"
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    environment:
+      AUTHN_TOKEN: ${JUDGE0_TOKEN}
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    restart: unless-stopped
+
+  judge0-worker:
+    image: judge0/judge0:latest
+    command: ["./scripts/workers"]
+    privileged: true
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    environment:
+      AUTHN_TOKEN: ${JUDGE0_TOKEN}
+    depends_on:
+      judge0-db:
+        condition: service_started
+      judge0-redis:
+        condition: service_started
+    restart: unless-stopped
+
+  judge0-db:
+    image: postgres:16.2
+    env_file:
+      - judge0.conf
+    volumes:
+      - judge0-db-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  judge0-redis:
+    image: redis:7.2.4
+    command: ["sh", "-c", "redis-server --appendonly no --requirepass \"$$REDIS_PASSWORD\""]
+    env_file:
+      - judge0.conf
+    volumes:
+      - judge0-redis-data:/data
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
+  judge0-db-data:
+  judge0-redis-data:

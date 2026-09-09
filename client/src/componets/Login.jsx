@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProfilePicThunk, setImageUrl, setLoading, setUser } from "../redux/userSlice";
 import axiosInstance from "../utils/axiosInstance";
-import { SEM, BRANCH } from "../../../server/utils/constants";
+import { SEM, BRANCH } from "../utils/constants";
 import PasswordChange from "./PassWordChange";
 import { ClipLoader } from "react-spinners";
 

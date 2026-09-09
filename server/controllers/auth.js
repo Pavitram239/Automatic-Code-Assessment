@@ -133,7 +133,7 @@ export const changePassword = async (req, res) => {
 
     const isPasswordValid = await user.comparePassword(
       oldPassword,
-      user.password
+      user.password,
     );
     if (!isPasswordValid) {
       return res
@@ -203,16 +203,6 @@ export const register = async (req, res) => {
     }
 
     console.log(userData);
-
-    if (userData.role === "faculty") {
-      const facultyEmailPattern = /^[a-zA-Z0-9._%+-]+@charusat\.ac\.in$/;
-
-      if (!facultyEmailPattern.test(userData.email)) {
-        throw new Error(
-          `Invalid email for faculty. Faculty email must match the pattern "name@charusat.ac.in".`
-        );
-      }
-    }
 
     const user = await User.create(userData);
     console.log(user);

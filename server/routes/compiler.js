@@ -6,9 +6,8 @@ import { isAuthorized } from "../middlewares/auth.js";
 
 const router = express.Router();
 
-// Use nginx service name instead of localhost in Docker environment
-const JUDGE0_BASE_URL = "http://localhost:2358";
-const JUDGE0_TOKEN = "CHAUHANRUTVIK22IT015";
+const JUDGE0_BASE_URL = process.env.JUDGE0_BASE_URL || "http://localhost:2358";
+const JUDGE0_TOKEN = process.env.JUDGE0_TOKEN || "";
 
 const getLanguageId = (language) => {
   const languageMap = {
@@ -69,7 +68,8 @@ const checkRateLimit = (userId) => {
     // Reset if window has passed
     userCount.count = 1;
     userCount.timestamp = now;
-  } else if (userCount.count >= userSubmissionLimits.maxRequests) { // Fixed typo: maxRequits -> maxRequests
+  } else if (userCount.count >= userSubmissionLimits.maxRequests) {
+    // Fixed typo: maxRequits -> maxRequests
     return false; // Rate limit exceeded
   } else {
     userCount.count++;
@@ -137,7 +137,7 @@ router.post("/run-code", isAuthorized, async (req, res) => {
 
     if (!allTestCases) {
       selectedTestCases = problemData.testCases.filter(
-        (testCase) => !testCase.is_hidden
+        (testCase) => !testCase.is_hidden,
       );
     } else {
       selectedTestCases = problemData.testCases; // Run all test cases during submission
@@ -173,18 +173,18 @@ router.post("/run-code", isAuthorized, async (req, res) => {
             submission,
             {
               headers: {
-                Authorization: `Bearer ${JUDGE0_TOKEN}`,
+                "X-Auth-Token": JUDGE0_TOKEN,
                 "X-Request-ID": `${userId}-${requestCounter}-${i}`, // Add request tracking
               },
               timeout: 10000, // 10 second timeout
-            }
+            },
           );
 
           // Log which instance handled the request
           logServerInstance(response, "Submission");
           return response;
         } catch (error) {
-          console.error(`Submission attempt ${i+1} failed:`, error.message);
+          console.error(`Submission attempt ${i + 1} failed:`, error.message);
           if (i === retryCount - 1) throw error;
           await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
         }
@@ -209,10 +209,10 @@ router.post("/run-code", isAuthorized, async (req, res) => {
             `${JUDGE0_BASE_URL}/submissions/${token}?base64_encoded=true&fields=*`,
             {
               headers: {
-                Authorization: `Bearer ${JUDGE0_TOKEN}`,
+                "X-Auth-Token": JUDGE0_TOKEN,
                 "X-Request-ID": `${userId}-${requestCounter}-result-${retries}`,
               },
-            }
+            },
           );
 
           result = response.data;
@@ -226,7 +226,10 @@ router.post("/run-code", isAuthorized, async (req, res) => {
 
           break;
         } catch (error) {
-          console.error(`Result fetch attempt ${retries+1} failed:`, error.message);
+          console.error(
+            `Result fetch attempt ${retries + 1} failed:`,
+            error.message,
+          );
           if (retries >= maxRetries) throw error;
           retries++;
           await new Promise((resolve) => setTimeout(resolve, 1000 * retries));
@@ -245,7 +248,7 @@ router.post("/run-code", isAuthorized, async (req, res) => {
 
     // Send code to Judge0 API
     const submissionResponses = await Promise.all(
-      submissions.map((submission) => submitToJudge0(submission))
+      submissions.map((submission) => submitToJudge0(submission)),
     );
 
     const tokens = submissionResponses.map((response) => response.data.token);
@@ -258,7 +261,7 @@ router.post("/run-code", isAuthorized, async (req, res) => {
       const decodedOutput = decodeBase64(result.stdout?.trim() || "");
       const normalizedOutput = normalizeOutput(decodedOutput);
       const expectedOutput = normalizeOutput(
-        selectedTestCases[index]?.outputs || ""
+        selectedTestCases[index]?.outputs || "",
       );
 
       return {
@@ -282,13 +285,14 @@ router.post("/run-code", isAuthorized, async (req, res) => {
       testResults.length > 0
         ? testResults.reduce(
             (sum, test) => sum + parseInt(test.memory || 0),
-            0
+            0,
           ) / testResults.length
         : 0;
 
     const numberOfTestCase = testResults.length;
-    const numberOfTestCasePass = testResults.filter((test) => test.passed)
-      .length;
+    const numberOfTestCasePass = testResults.filter(
+      (test) => test.passed,
+    ).length;
 
     // Calculate marks for each test case
     const testCaseResults = testResults.map((test, index) => ({
@@ -308,7 +312,7 @@ router.post("/run-code", isAuthorized, async (req, res) => {
 
     const totalMarks = testCaseResults.reduce(
       (sum, test) => sum + test.marks,
-      0
+      0,
     );
     const submissionStatus =
       numberOfTestCase === numberOfTestCasePass ? "completed" : "rejected";
@@ -371,7 +375,7 @@ router.post("/run-code", isAuthorized, async (req, res) => {
                 time: test.time,
                 memory: test.memory,
                 marks: test.marks,
-              })
+              }),
             ),
           }
         : null,
